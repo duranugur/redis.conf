@@ -2,7 +2,7 @@ kind: StatefulSet
 apiVersion: apps/v1
 metadata:
   name: redis-cluster
-  namespace: chatbot
+  namespace: YOURNAMESPACE
 spec:
   replicas: 6
   selector:

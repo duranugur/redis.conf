@@ -1,0 +1,83 @@
+kind: StatefulSet
+apiVersion: apps/v1
+metadata:
+  name: redis-cluster
+  namespace: chatbot
+spec:
+  replicas: 6
+  selector:
+    matchLabels:
+      app: redis-cluster
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: redis-cluster
+    spec:
+      volumes:
+        - name: conf
+          configMap:
+            name: redisconf
+            defaultMode: 493
+      containers:
+        - resources:
+            limits:
+              cpu: 800m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+          terminationMessagePath: /dev/termination-log
+          name: redis
+          command:
+            - /conf/update-node.sh
+            - redis-server
+            - /conf/redis.conf
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+          ports:
+            - name: client
+              containerPort: 6379
+              protocol: TCP
+            - name: gossip
+              containerPort: 16379
+              protocol: TCP
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: conf
+              mountPath: /conf
+            - name: redis-data
+              mountPath: /var/lib/redis/data
+          terminationMessagePolicy: File
+          image: 'redis:6.0.8'
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst
+      securityContext: {}
+      schedulerName: default-scheduler
+  volumeClaimTemplates:
+    - kind: PersistentVolumeClaim
+      apiVersion: v1
+      metadata:
+        name: redis-data
+        creationTimestamp: null
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          limits:
+            storage: 3Gi
+          requests:
+            storage: 3Gi
+        volumeMode: Filesystem
+  serviceName: redis-cluster
+  podManagementPolicy: OrderedReady
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      partition: 0
+  revisionHistoryLimit: 10
